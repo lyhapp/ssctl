@@ -96,7 +96,7 @@ addport() {
 	PORT=`grep $1 /etc/shadowsocks.json`
 	[ -n "$PORT" ] && echo 'This port already exists' && exit
 	PASSWD=`cat /dev/urandom | tr -dc '0-9a-zA-Z' | head -c 20`
-	iptables -I OUTPUT -p tcp --sport $1
+	iptables -A OUTPUT -p tcp --sport $1
 	sed -ri "/port_password/a\        \"$1\"\:\"$PASSWD\"," /etc/shadowsocks.json
 	WORKERS=`grep -E '"[0-9]+":"[[:alnum:]_]+"' /etc/shadowsocks.json | wc -l`
 	sed -ri "s/(.*workers\":).*/\1$WORKERS/" /etc/shadowsocks.json
