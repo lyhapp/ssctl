@@ -77,7 +77,11 @@ server() {
     	;;
 	restart)
     	ssserver -d stop
-    	sleep 2
+	for i in {1..20};do
+		echo -n '='
+    		sleep 0.1
+	done
+	echo
     	ssserver --user nobody -c /etc/shadowsocks.json -d start
     	;;
 	*)
