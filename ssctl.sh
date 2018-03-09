@@ -57,9 +57,9 @@ confcheck() {
 
 croncheck() {
 	CRONROOT=/var/spool/cron/root
-	DIR=`pwd`
+	DIR=`cd "$(dirname "$0")";pwd`
 	NAME=`basename $0`
-	PWDPATH=`echo "$DIR/$NAME"`
+	PWDPATH="$DIR/$NAME"
 	CHECK=`grep "$PWDPATH check" $CRONROOT`
 	CLEAN1=`grep "$PWDPATH drop del all" $CRONROOT`
 	CLEAN2=`grep 'iptables -Z' $CRONROOT`
