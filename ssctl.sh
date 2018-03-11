@@ -123,9 +123,9 @@ drop() {
 	case $1 in
 	del)
 		if [ "$2" = "all" ];then
-			DROPNUM=`iptables -vnL INPUT --line-numbers | grep "DROP" | awk '{print $1}'`
+			DROPNUM=`iptables -vnL INPUT --line-numbers | grep "DROP" | grep -E 'dpt:[0-9]+' | awk '{print $1}'`
 			for i in $DROPNUM;do
-				NUM=`iptables -vnL INPUT --line-numbers | grep "DROP" | head -n1 | awk '{print $1}'`
+				NUM=`iptables -vnL INPUT --line-numbers | grep "DROP" | grep -E 'dpt:[0-9]+' | head -n1 | awk '{print $1}'`
 				iptables -D INPUT $NUM
 			done
 		else
