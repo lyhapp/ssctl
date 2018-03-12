@@ -22,7 +22,7 @@
 ## 二，使用方法
 1，写配置文件。下载脚本后直接执行一下可以获取配置文件模板，把配置文件放在/etc/shadowsocks.json
 
-2，ssctl.sh addport [端口号] [流量数（G)] [备注信息]  增加端口
+2，ssctl.sh addport [端口号] [流量数(G)] [备注信息]  增加端口
 
 3，ssctl.sh delport [端口号] 删除端口
 
