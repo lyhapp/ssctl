@@ -1,8 +1,9 @@
 #!/bin/bash
 #Author:Driver_C
 #Blog:http://chenjingyu.cn
+source /etc/profile
 
-VERSION=1.0.1
+VERSION=1.1.2
 
 helpmsg() {
 	echo "Version $VERSION"
@@ -18,7 +19,8 @@ helpmsg() {
 	echo '  drop         Iptables contral'
 	echo '      add          Useage:add <PORT> Add port to iptables DROP list'
 	echo '      del          Useage:del <PORT|all> Delete a port from iptables DROP list or delete all'
-	echo
+	echo '  portdata     Usage:portdata <PORT> check data usage'
+	echo 
 	confex
 }
 
@@ -37,7 +39,7 @@ confex() {
 	echo '    "timeout":300,'
 	echo '    "method":"aes-256-cfb",'
 	echo '    "fast_open": false,'
-	echo '    "workers":3'
+	echo '    "workers":1'
 	echo '}'
 	echo
 }
@@ -98,9 +100,8 @@ addport() {
 	[ -n "$PORT" ] && echo 'This port already exists' && exit
 	PASSWD=`cat /dev/urandom | tr -dc '0-9a-zA-Z' | head -c 20`
 	iptables -A OUTPUT -p tcp --sport $1
+	iptables -A OUTPUT -p udp --sport $1
 	sed -ri "/port_password/a\        \"$1\"\:\"$PASSWD\"," /etc/shadowsocks.json
-	WORKERS=`grep -E '"[0-9]+":"[[:alnum:]_]+"' /etc/shadowsocks.json | wc -l`
-	sed -ri "s/(.*workers\":).*/\1$WORKERS/" /etc/shadowsocks.json
 	echo "$1 $2 $3" >> /etc/ssuser.conf
 	server restart
 	echo "Port:$1 Password:$PASSWD"
@@ -109,11 +110,10 @@ addport() {
 delport() {
 	[[ ! $1 =~ [0-9]+ ]] && echo 'Port wrong' && exit
 	NUM=`iptables -vnL OUTPUT --line-numbers | grep "spt:$1" | awk '{print $1}'`
-	[ -z $NUM ] && echo 'Can not find this port' && exit
-	iptables -D OUTPUT $NUM
+	[ -z "$NUM" ] && echo 'Can not find this port' && exit
+	iptables -D OUTPUT -p tcp --sport $1
+	iptables -D OUTPUT -p udp --sport $1
 	sed -ri "/$1/d" /etc/shadowsocks.json
-	WORKERS=`grep -E '"[0-9]+":"[[:alnum:]_]+"' /etc/shadowsocks.json | wc -l`
-	sed -ri "s/(.*workers\":).*/\1$WORKERS/" /etc/shadowsocks.json
 	sed -ri "/$1/d" /etc/ssuser.conf
 	server restart
 	echo "Delete $1 successd"
@@ -130,13 +130,14 @@ drop() {
 			done
 		else
 			[[ ! $2 =~ [0-9]+ ]] && echo 'Port wrong' && exit
-			DROP=`iptables -vnL INPUT --line-numbers | grep "dpt:$2" | awk '{print $1}'`
-			iptables -D INPUT $DROP
+			iptables -D INPUT -p tcp --dport $2 -j DROP
+			iptables -D INPUT -p udp --dport $2 -j DROP
 		fi
 		;;
 	add)
 		[[ ! $2 =~ [0-9]+ ]] && echo 'Port wrong' && exit
 		iptables -A INPUT -p tcp --dport $2 -j DROP
+		iptables -A INPUT -p udp --dport $2 -j DROP
 		;;
 	*)
 	helpmsg
@@ -149,37 +150,51 @@ check() {
 	for i in $PORT;do
 		DATACONF=`grep "$i" /etc/ssuser.conf | awk '{print $2}'`
 		DATANUM=$[${DATACONF}*1024*1024*1024]
-		DATANOW=`iptables -vnL OUTPUT -x | grep "spt:$i" | awk '{print $2}'`
+		DATA=`iptables -vnL OUTPUT -x | grep "spt:$i" | awk '{print $2}'`
+		for j in $DATA;do
+			let DATANOW+=$j
+		done
 		if [ $DATANOW -gt $DATANUM ];then
 			drop add $i
 		fi
 	done
 }
 
+portdata() {
+	CHK=`grep "$1" /etc/ssuser.conf`
+	[ -z "$CHK" ] && echo 'Can not find this port' && exit
+	DATA=`iptables -vnL OUTPUT -x | grep "spt:$1" | awk '{print $2}'`
+	for i in $DATA;do
+		let DATANOW+=$i
+	done
+	PORTDATA=`echo $DATANOW | awk '{printf "%.3f\r",$1/1024/1024/1024}'`
+	DATACONF=`grep "$1" /etc/ssuser.conf | awk '{print $2}'`
+	echo "Port:$1"
+	echo "Total:${DATACONF}"
+	echo "Used:${PORTDATA}"
+}
+
 main() {
+	confcheck
+	croncheck
 	case $1 in
 	addport)
-		confcheck
-		croncheck
 		addport $2 $3 $4
 	;;
 	delport)
-		confcheck
-		croncheck
 		delport $2
 	;;
 	drop)
-		confcheck
-		croncheck
 		drop $2 $3
 	;;
 	server)
-		confcheck
-		croncheck
 		server $2
 	;;
 	check)
 		check
+	;;
+	portdata)
+		portdata $2
 	;;
 	*)
 	helpmsg
